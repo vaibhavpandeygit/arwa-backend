@@ -2,25 +2,31 @@ const express = require('express');
 const twilio = require('twilio');
 const fetch = require('node-fetch');
 const mongoose = require('mongoose');
-const Conversation = require('../models/conversationModel');
 require('dotenv').config();
-
+const Conversation = require('./models/conversation'); // Import the Mongoose model
 
 const router = express.Router();
-
-// In-memory storage for conversations
-const ongoingConversations = {};
 
 // Twilio webhook to handle the start of the call
 router.post('/incoming-call', (req, res) => {
     const twiml = new twilio.twiml.VoiceResponse();
 
-    // Start a conversation in memory when the call starts
+    // Start a conversation in the database when the call starts
     const callSid = req.body.CallSid;
-    ongoingConversations[callSid] = {
+    
+    // Initialize the conversation log in the database
+    const newConversation = new Conversation({
         callSid: callSid,
-        logs: []
-    };
+        logs: [],
+    });
+
+    newConversation.save()
+        .then(() => {
+            console.log(`Conversation for CallSid ${callSid} started and saved.`);
+        })
+        .catch((error) => {
+            console.error('Error starting conversation:', error);
+        });
 
     twiml.say('Hello! Please ask me your question.');
 
@@ -44,13 +50,29 @@ router.post('/process-speech', async (req, res) => {
     // Send the user's speech to ChatGPT API
     const chatgptResponse = await sendToChatGPT(userSpeech);
 
-    // Store conversation in-memory
-    if (ongoingConversations[callSid]) {
-        ongoingConversations[callSid].logs.push({ role: 'user', content: userSpeech });
-        ongoingConversations[callSid].logs.push({ role: 'chatGPT', content: chatgptResponse });
-    }
+    // Update the conversation in the database
+    Conversation.findOne({ callSid: callSid })
+        .then((conversation) => {
+            if (conversation) {
+                // Add the user's speech and ChatGPT response to the conversation logs
+                conversation.logs.push({ role: 'user', content: userSpeech });
+                conversation.logs.push({ role: 'chatGPT', content: chatgptResponse });
 
-    console.log(`Conversation for CallSid ${callSid}:`, ongoingConversations[callSid]);
+                // Save the updated conversation
+                conversation.save()
+                    .then(() => {
+                        console.log(`Conversation for CallSid ${callSid} updated.`);
+                    })
+                    .catch((error) => {
+                        console.error('Error updating conversation:', error);
+                    });
+            } else {
+                console.error('Conversation not found for CallSid:', callSid);
+            }
+        })
+        .catch((error) => {
+            console.error('Error finding conversation:', error);
+        });
 
     // Respond to the user via Twilio
     const twiml = new twilio.twiml.VoiceResponse();
@@ -87,34 +109,5 @@ async function sendToChatGPT(userInput) {
     const data = await response.json();
     return data.choices[0].message.content;
 }
-
-// Twilio webhook to handle the call hangup (end of the call)
-router.post('/call-ended', async (req, res) => {
-    const callSid = req.body.CallSid; // Get the Call SID of the ended call
-
-    // If there is an ongoing conversation, save it to the database
-    if (ongoingConversations[callSid]) {
-        const conversationData = ongoingConversations[callSid];
-
-        // Save conversation to MongoDB
-        const conversation = new Conversation({
-            callSid: conversationData.callSid,
-            logs: conversationData.logs,
-        });
-
-        try {
-            await conversation.save();
-            console.log(`Conversation for CallSid ${callSid} saved to the database.`);
-            // Clean up in-memory data
-            delete ongoingConversations[callSid];
-            res.status(200).send('Conversation saved to database.');
-        } catch (error) {
-            console.error('Error saving conversation:', error);
-            res.status(500).send('Failed to save conversation.');
-        }
-    } else {
-        res.status(404).send('No ongoing conversation found.');
-    }
-});
 
 module.exports = router;
