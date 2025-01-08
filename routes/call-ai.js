@@ -2,8 +2,8 @@ const express = require('express');
 const twilio = require('twilio');
 const fetch = require('node-fetch');
 const mongoose = require('mongoose');
+const Conversation = require('../models/conversationModel');
 require('dotenv').config();
-const Conversation = require('./models/conversation'); // Import the Mongoose model
 
 const router = express.Router();
 
