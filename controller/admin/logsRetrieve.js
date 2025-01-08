@@ -1,4 +1,5 @@
 const twilio = require('twilio');
+const Conversation = require('../../models/conversationModel');
 require('dotenv').config();
 
 // Initialize Twilio Client
