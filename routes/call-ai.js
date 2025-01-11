@@ -89,11 +89,20 @@ router.post('/process-speech', async (req, res) => {
     res.send(twiml.toString());
 });
 
-// Function to send data to ChatGPT API
-async function sendToChatGPT(userInput) {
+
+async function sendToChatGPT(callSid, userInput) {
     const apiKey = process.env.OPENAI_API_KEY;
     const url = 'https://api.openai.com/v1/chat/completions';
 
+    // Initialize conversation history for the user if it doesn't exist
+    if (!conversationHistory[callSid]) {
+        conversationHistory[callSid] = [];
+    }
+
+    // Add the user's input to the conversation history
+    conversationHistory[callSid].push({ role: 'user', content: userInput });
+
+    // Send the conversation history to ChatGPT API
     const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -102,12 +111,18 @@ async function sendToChatGPT(userInput) {
         },
         body: JSON.stringify({
             model: 'gpt-3.5-turbo',
-            messages: [{ role: 'user', content: userInput }],
+            messages: conversationHistory[callSid],
         }),
     });
 
     const data = await response.json();
-    return data.choices[0].message.content;
+    const assistantReply = data.choices[0].message.content;
+
+    // Add the assistant's reply to the conversation history
+    conversationHistory[callSid].push({ role: 'assistant', content: assistantReply });
+
+    return assistantReply;
 }
+
 
 module.exports = router;
