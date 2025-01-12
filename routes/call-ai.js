@@ -107,6 +107,7 @@ async function sendToChatGPT(callSid, userInput) {
 
   try {
     // Send the conversation history to ChatGPT API
+    console.log('history before sending to chat gpt', conversationHistory[callSid]);
     const response = await fetch(url, {
       method: 'POST',
       headers: {
