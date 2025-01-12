@@ -82,7 +82,7 @@ router.post('/process-speech', async (req, res) => {
     twiml.gather({
         input: 'speech',
         action: '/process-speech',
-        timeout: 5,
+        timeout: 10,
     });
 
     res.type('text/xml');
@@ -108,7 +108,7 @@ async function sendToChatGPT(callSid, userInput) {
   }
 
   // Add the user's input to the conversation history
-  conversationHistory[callSid].push({ role: 'user', content: userInput });
+  conversationHistory[callSid].push({ role: 'user', content: `answer it concisely "${userInput}"` });
 
   try {
     // Send the conversation history to ChatGPT API
