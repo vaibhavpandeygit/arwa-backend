@@ -48,7 +48,7 @@ router.post('/process-speech', async (req, res) => {
     console.log('User said:', userSpeech);
 
     // Send the user's speech to ChatGPT API
-    const chatgptResponse = await sendToChatGPT(userSpeech);
+    const chatgptResponse = await sendToChatGPT(callSid, userSpeech);
 
     // Update the conversation in the database
     Conversation.findOne({ callSid: callSid })
@@ -89,31 +89,39 @@ router.post('/process-speech', async (req, res) => {
     res.send(twiml.toString());
 });
 
+// In-memory storage for conversation history
+const conversationHistory = {};
 
+// Function to send data to ChatGPT API with conversation memory
 async function sendToChatGPT(callSid, userInput) {
-    const apiKey = process.env.OPENAI_API_KEY;
-    const url = 'https://api.openai.com/v1/chat/completions';
+  const apiKey = process.env.OPENAI_API_KEY;
+  const url = 'https://api.openai.com/v1/chat/completions';
 
-    // Initialize conversation history for the user if it doesn't exist
-    if (!conversationHistory[callSid]) {
-        conversationHistory[callSid] = [];
-    }
+  // Initialize conversation history for the user if it doesn't exist
+  if (!conversationHistory[callSid]) {
+    conversationHistory[callSid] = [];
+  }
 
-    // Add the user's input to the conversation history
-    conversationHistory[callSid].push({ role: 'user', content: userInput });
+  // Add the user's input to the conversation history
+  conversationHistory[callSid].push({ role: 'user', content: userInput });
 
+  try {
     // Send the conversation history to ChatGPT API
     const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-            model: 'gpt-3.5-turbo',
-            messages: conversationHistory[callSid],
-        }),
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4', // Use GPT-4 for better context and understanding
+        messages: conversationHistory[callSid],
+      }),
     });
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.statusText}`);
+    }
 
     const data = await response.json();
     const assistantReply = data.choices[0].message.content;
@@ -122,7 +130,10 @@ async function sendToChatGPT(callSid, userInput) {
     conversationHistory[callSid].push({ role: 'assistant', content: assistantReply });
 
     return assistantReply;
+  } catch (error) {
+    console.error('Error communicating with ChatGPT:', error);
+    return 'Sorry, I encountered an error while processing your request.';
+  }
 }
-
 
 module.exports = router;
