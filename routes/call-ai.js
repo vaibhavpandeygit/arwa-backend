@@ -97,9 +97,14 @@ async function sendToChatGPT(callSid, userInput) {
   const apiKey = process.env.OPENAI_API_KEY;
   const url = 'https://api.openai.com/v1/chat/completions';
 
+  const firstUserInput = 'Hi ChatGPT! I’d like our conversations to be kind, casual, and to the point, like I’m chatting with a helpful customer care representative. Please keep your responses concise, clear, and avoid overexplaining unless I ask for more details. Let’s keep it friendly and efficient!'
+  const firstAssistantReply = 'Got it, Let’s keep it friendly and efficient.'
+
   // Initialize conversation history for the user if it doesn't exist
   if (!conversationHistory[callSid]) {
     conversationHistory[callSid] = [];
+    conversationHistory[callSid].push({ role: 'user', content: firstUserInput });
+    conversationHistory[callSid].push({ role: 'assistant', content: firstAssistantReply });
   }
 
   // Add the user's input to the conversation history
@@ -107,7 +112,6 @@ async function sendToChatGPT(callSid, userInput) {
 
   try {
     // Send the conversation history to ChatGPT API
-    console.log('history before sending to chat gpt', conversationHistory[callSid]);
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -115,7 +119,7 @@ async function sendToChatGPT(callSid, userInput) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4', // Use GPT-4 for better context and understanding
+        model: 'gpt-4',
         messages: conversationHistory[callSid],
       }),
     });
