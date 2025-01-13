@@ -21,6 +21,6 @@ const getDetails = async (req, res) => {
       });
     }
   };
-  
+
   module.exports = { getDetails };
   

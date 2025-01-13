@@ -1,7 +1,6 @@
 const express = require('express');
 const twilio = require('twilio');
 const fetch = require('node-fetch');
-const mongoose = require('mongoose');
 const Conversation = require('../models/conversationModel');
 require('dotenv').config();
 
@@ -34,7 +33,8 @@ router.post('/incoming-call', (req, res) => {
     twiml.gather({
         input: 'speech',
         action: '/process-speech', // After speech is captured, send it here
-        timeout: 5,
+        timeout: 10,
+        language: 'de-DE'
     });
 
     res.type('text/xml');
@@ -83,6 +83,7 @@ router.post('/process-speech', async (req, res) => {
         input: 'speech',
         action: '/process-speech',
         timeout: 10,
+        language: 'de-DE'
     });
 
     res.type('text/xml');
@@ -97,18 +98,15 @@ async function sendToChatGPT(callSid, userInput) {
   const apiKey = process.env.OPENAI_API_KEY;
   const url = 'https://api.openai.com/v1/chat/completions';
 
-  const firstUserInput = 'Hi ChatGPT! I’d like our conversations to be kind, casual, and to the point, like I’m chatting with a helpful customer care representative. Please keep your responses concise, clear, and avoid overexplaining unless I ask for more details. Let’s keep it friendly and efficient!'
-  const firstAssistantReply = 'Got it, Let’s keep it friendly and efficient.'
-
+  const firstSystemMessage = "You are a helpful assistant fluent in both English and German. Respond to users in the language they use to communicate with you. Keep your answers concise and clear, avoiding unnecessary details unless the user asks for more information. Your tone should be friendly, human-like, and professional, ensuring that the user feels supported and understood. Your primary goal is to resolve queries effectively while maintaining a conversational and approachable style."
+  
   // Initialize conversation history for the user if it doesn't exist
   if (!conversationHistory[callSid]) {
     conversationHistory[callSid] = [];
-    conversationHistory[callSid].push({ role: 'user', content: firstUserInput });
-    conversationHistory[callSid].push({ role: 'assistant', content: firstAssistantReply });
+    conversationHistory[callSid].push({ role: 'system', content: firstSystemMessage });
   }
-
   // Add the user's input to the conversation history
-  conversationHistory[callSid].push({ role: 'user', content: `answer it concisely "${userInput}"` });
+  conversationHistory[callSid].push({ role: 'user', content: `respond concisely "${userInput}"` });
 
   try {
     // Send the conversation history to ChatGPT API

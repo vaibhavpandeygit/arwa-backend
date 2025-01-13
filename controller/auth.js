@@ -25,7 +25,7 @@ const login = async (req, res) => {
     const token = jwt.sign(
       { id: user._id, isAdmin: user.isAdmin }, // Payload
       process.env.JWT_SECRET, // Secret key
-      { expiresIn: '1h' } // Token expiration
+      { expiresIn: '7d' } // Token expiration
     );
 
     // Respond with token
@@ -96,4 +96,39 @@ const register = async (req, res) => {
     }
   };
 
-module.exports = { login, register };
+
+  const updatePassword = async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+  
+    try {
+      // Validate the input
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Both current and new passwords are required.' });
+      }
+  
+      // The user's ID is available in req.user from the authentication middleware
+      const user = req.user;
+  
+      // Verify the current password
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Current password is incorrect.' });
+      }
+  
+      // Hash the new password
+      const salt = await bcrypt.genSalt(10);
+      const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+  
+      // Update the password in the database
+      user.password = hashedNewPassword;
+      await user.save();
+  
+      // Respond with success
+      res.status(200).json({ message: 'Password updated successfully.' });
+    } catch (error) {
+      console.error('Error updating password:', error);
+      res.status(500).json({ message: 'Server error.' });
+    }
+  };
+
+module.exports = { login, register, updatePassword };
