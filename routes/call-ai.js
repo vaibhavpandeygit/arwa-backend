@@ -27,7 +27,7 @@ router.post('/incoming-call', (req, res) => {
             console.error('Error starting conversation:', error);
         });
 
-    twiml.say('Hello! Please ask me your question.');
+    twiml.say({ voice: 'Polly.Marlene', language: 'de-DE' }, 'Hallo! Bitte stellen Sie mir Ihre Frage.');
 
     // Gather speech input
     twiml.gather({
@@ -76,7 +76,7 @@ router.post('/process-speech', async (req, res) => {
 
     // Respond to the user via Twilio
     const twiml = new twilio.twiml.VoiceResponse();
-    twiml.say(chatgptResponse);
+    twiml.say({ voice: 'Polly.Marlene', language: 'de-DE' }, chatgptResponse);
 
     // Gather more input for a two-way conversation
     twiml.gather({
